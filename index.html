@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <title>3D 臥推模擬 (狀態簡化版)</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #0f1015;
+            color: white;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        /* === 右上角計數器 === */
+        #counterPanel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.85);
+            border: 1px solid #00ffff;
+            border-radius: 8px;
+            padding: 15px 25px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.1);
+            pointer-events: none;
+            transform: skew(-10deg);
+            z-index: 10;
+        }
+
+        .counter-label {
+            font-size: 11px;
+            color: #667788;
+            letter-spacing: 2px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        #repCount {
+            font-family: 'Courier New', monospace;
+            font-size: 42px;
+            font-weight: 900;
+            color: #00eaff;
+            text-shadow: none;
+            line-height: 1;
+        }
+
+        /* === 左上角狀態機 === */
+        #statusPanel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(20, 25, 35, 0.95);
+            padding: 15px 25px;
+            border-radius: 12px;
+            pointer-events: none;
+            border-left: 4px solid #555;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+            text-align: left;
+            transition: border-color 0.3s ease;
+            min-width: 180px;
+            z-index: 10;
+        }
+
+        #statusLabel {
+            font-size: 10px;
+            color: #556677;
+            letter-spacing: 1px;
+            font-weight: 700;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+        }
+
+        #statusText {
+            font-size: 22px;
+            font-weight: 700;
+            color: #ddd;
+            font-family: 'Segoe UI', sans-serif;
+            text-shadow: none;
+        }
+
+        /* 狀態顏色 */
+        .st-ready {
+            color: #95a5a6 !important;
+        }
+
+        .st-unrack {
+            color: #f39c12 !important;
+            text-shadow: 0 0 5px rgba(243, 156, 18, 0.3) !important;
+        }
+
+        .st-active {
+            color: #00d2d3 !important;
+            text-shadow: 0 0 5px rgba(0, 210, 211, 0.3) !important;
+        }
+
+        /* 統一運動中的顏色 */
+        .st-paused {
+            color: #f1c40f !important;
+            animation: blink 2s infinite;
+            opacity: 0.9;
+        }
+
+        @keyframes blink {
+            0% {
+                opacity: 0.9;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+
+            100% {
+                opacity: 0.9;
+            }
+        }
+
+        /* === 下方控制列 === */
+        #controls {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(20, 25, 35, 0.95);
+            padding: 12px 30px;
+            border-radius: 50px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            border: 1px solid #445566;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+            z-index: 20;
+        }
+
+        button {
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 14px;
+            transition: 0.2s;
+            min-width: 100px;
+            color: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            filter: brightness(1.1);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        #actionBtn {
+            background: linear-gradient(135deg, #5dade2, #2e86c1);
+            color: white;
+            box-shadow: 0 4px 10px rgba(46, 134, 193, 0.3);
+        }
+
+        #actionBtn.reset {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: white;
+            box-shadow: 0 4px 10px rgba(192, 57, 43, 0.3);
+        }
+
+        #pauseBtn {
+            background: linear-gradient(135deg, #f1c40f, #d4ac0d);
+            color: #2c3e50;
+            box-shadow: 0 4px 10px rgba(241, 196, 15, 0.3);
+        }
+
+        #pauseBtn.paused {
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+            color: white;
+            box-shadow: 0 4px 10px rgba(46, 204, 113, 0.3);
+        }
+
+        /* 幫助按鈕 (圓形) */
+        #helpBtn {
+            min-width: 40px;
+            width: 40px;
+            height: 40px;
+            padding: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            color: #8899aa;
+            border: 1px solid #556677;
+            font-size: 18px;
+        }
+
+        #helpBtn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border-color: white;
+        }
+
+        input[type=range] {
+            accent-color: #5dade2;
+            cursor: pointer;
+        }
+
+        .divider {
+            width: 1px;
+            height: 25px;
+            background: #445566;
+            margin: 0 5px;
+        }
+
+        /* === ★★★ 操作說明彈窗 (Overlay) ★★★ === */
+        #helpOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(5px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            z-index: 100;
+        }
+
+        #helpOverlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        #helpContent {
+            background: #1a1c23;
+            border: 1px solid #5dade2;
+            box-shadow: 0 0 30px rgba(93, 173, 226, 0.2);
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 500px;
+            width: 90%;
+            transform: translateY(20px);
+            transition: transform 0.3s;
+        }
+
+        #helpOverlay.active #helpContent {
+            transform: translateY(0);
+        }
+
+        #helpContent h2 {
+            margin: 0 0 20px 0;
+            color: #5dade2;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .help-item {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 15px;
+            gap: 15px;
+        }
+
+        .help-icon {
+            background: #2c3e50;
+            min-width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .help-text h4 {
+            margin: 0 0 5px 0;
+            color: #fff;
+            font-size: 15px;
+        }
+
+        .help-text p {
+            margin: 0;
+            color: #8899aa;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
+        .close-note {
+            margin-top: 20px;
+            text-align: center;
+            color: #556677;
+            font-size: 12px;
+            border-top: 1px solid #333;
+            padding-top: 15px;
+        }
+
+        /* 加上新的響應式設定 */
+        #syncVideo {
+            display: block;
+            /* 確保顯示 */
+            position: absolute;
+            /* 絕對定位 */
+            top: 20px;
+            /* 靠上 */
+            left: 20px;
+            /* 靠左 */
+            width: 480px;
+            /* 寬度佔視窗寬度的 25% */
+            height: auto;
+            /* 高度自動調整，保持比例 */
+            z-index: 10;
+            /* 確保顯示在 3D 場景上方 */
+            border-radius: 12px;
+            border: 2px solid #5dade2;
+            background-color: #000;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+</head>
+
+<body>
+
+    <img id="syncVideo">
+
+    <div id="helpOverlay" onclick="toggleHelp()">
+        <div id="helpContent" onclick="event.stopPropagation()">
+            <h2>💡 操作指南</h2>
+
+            <div class="help-item">
+                <div class="help-icon">🚀</div>
+                <div class="help-text">
+                    <h4>開始 / 重置 (Start / Reset)</h4>
+                    <p>控制訓練流程。點擊「開始」進行起槓，完成後點擊「重置」將器材歸零。</p>
+                </div>
+            </div>
+
+            <div class="help-item">
+                <div class="help-icon">⏸️</div>
+                <div class="help-text">
+                    <h4>暫停 / 繼續 (Pause / Resume)</h4>
+                    <p>凍結目前動作。適合暫停後旋轉視角，觀察特定角度的姿勢細節。</p>
+                </div>
+            </div>
+
+            <div class="help-item">
+                <div class="help-icon">🖱️</div>
+                <div class="help-text">
+                    <h4>視角控制 (Camera Control)</h4>
+                    <p>• 左鍵拖曳：旋轉視角<br>• 右鍵拖曳：平移視角<br>• 滾輪：縮放遠近</p>
+                </div>
+            </div>
+
+            <div class="help-item">
+                <div class="help-icon">📊</div>
+                <div class="help-text">
+                    <h4>計數機制 (Auto Counter)</h4>
+                    <p>系統會自動偵測「完整行程」。必須將槓鈴下放至胸口並推回頂點，計數才會 +1。</p>
+                </div>
+            </div>
+
+            <div class="close-note">點擊任意處關閉視窗</div>
+        </div>
+    </div>
+
+    <div id="controls">
+        <button id="playPauseBtn" onclick="togglePlay()"
+            style="background: linear-gradient(135deg, #5dade2, #2e86c1); color: white;">
+            ⏸️ 暫停
+        </button>
+
+        <div class="divider"></div>
+
+        <div style="display:flex; flex-direction:column; align-items:center; width: 200px;">
+            <label style="font-size:10px; margin-bottom:2px; color:#8899aa;">播放進度</label>
+            <input type="range" id="progressBar" min="0" max="100" value="0" style="width: 100%;" title="拖曳以調整進度">
+        </div>
+
+        <div class="divider"></div>
+
+        <div style="display:flex; flex-direction:column; align-items:center;">
+            <label style="font-size:10px; margin-bottom:2px; color:#8899aa;">速度</label>
+            <input type="range" id="speedRange" min="1" max="10" value="4" title="調整播放速度">
+        </div>
+    </div>
+
+    <script>
+        // === 1. 初始化 ===
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0f1015);
+        scene.fog = new THREE.Fog(0x0f1015, 10, 30);
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(2, 3.0, 2.5); camera.lookAt(0, 0.5, 0);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.outputEncoding = THREE.sRGBEncoding;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        document.body.appendChild(renderer.domElement);
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.target.set(0, 0.5, 0); controls.enableDamping = true;
+
+        // === 2. 燈光 ===
+        scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+        const mainLight = new THREE.DirectionalLight(0xffffff, 1.3);
+        mainLight.position.set(3, 8, 5); mainLight.castShadow = true; scene.add(mainLight);
+        const rimLight = new THREE.PointLight(0x89CFF0, 1.0, 10);
+        rimLight.position.set(-3, 2, -3); scene.add(rimLight);
+        const fillLight = new THREE.PointLight(0xffaa00, 0.5, 10);
+        fillLight.position.set(3, 1, -3); scene.add(fillLight);
+
+        // === 材質 ===
+        const mat = {
+            skin: new THREE.MeshStandardMaterial({ color: 0xffd1a9, roughness: 0.3 }),
+            shirt: new THREE.MeshStandardMaterial({ color: 0x89CFF0, roughness: 0.5, emissive: 0x001133 }),
+            pants: new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 }),
+            chrome: new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.95, roughness: 0.1 }),
+            rackPaint: new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.4, metalness: 0.2 }),
+            blackMetal: new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.5, metalness: 0.5 }),
+            benchPad: new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.5 }),
+            floor: new THREE.MeshStandardMaterial({ color: 0x34495e, roughness: 0.7 })
+        };
+
+        // === 3. 環境與器材 ===
+        const floor = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), mat.floor);
+        floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+        const grid = new THREE.GridHelper(30, 30, 0x89CFF0, 0x2c3e50);
+        grid.position.y = 0.001; scene.add(grid);
+
+        const benchGroup = new THREE.Group(); scene.add(benchGroup);
+        const pad = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.1, 1.2), mat.benchPad);
+        pad.position.set(0, 0.45, 0); pad.castShadow = true; benchGroup.add(pad);
+        const legMat = mat.chrome;
+        const fLeg = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.4, 0.06), legMat); fLeg.position.set(0, 0.2, 0.45); benchGroup.add(fLeg);
+        const fBase = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.05, 0.1), legMat); fBase.position.set(0, 0.025, 0.45); benchGroup.add(fBase);
+        const bLeg = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.4, 0.06), legMat); bLeg.position.set(0, 0.2, -0.45); benchGroup.add(bLeg);
+        const bBase = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.05, 0.1), legMat); bBase.position.set(0, 0.025, -0.45); benchGroup.add(bBase);
+        const beam = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.9), legMat); beam.position.set(0, 0.2, 0); benchGroup.add(beam);
+
+        // --- 組合架 ---
+        const rackGroup = new THREE.Group(); scene.add(rackGroup);
+        const hookShape = new THREE.Shape();
+        hookShape.moveTo(0, 0); hookShape.lineTo(0.06, 0); hookShape.quadraticCurveTo(0.08, 0, 0.08, 0.02); hookShape.lineTo(0.08, 0.05);
+        hookShape.lineTo(0.065, 0.05); hookShape.lineTo(0.065, 0.02); hookShape.quadraticCurveTo(0.065, 0.012, 0.06, 0.012);
+        hookShape.lineTo(0.015, 0.012); hookShape.lineTo(0.015, 0.10); hookShape.lineTo(0, 0.10);
+        const hookGeo = new THREE.ExtrudeGeometry(hookShape, { depth: 0.04, bevelEnabled: false });
+        const safetyGeo = new THREE.BoxGeometry(0.06, 0.06, 0.6);
+        const pinGeo = new THREE.CylinderGeometry(0.015, 0.015, 0.1, 16);
+        const RACK_Z = -0.5; const RACK_WIDTH = 0.08; const RACK_FACE_Z = RACK_Z + RACK_WIDTH / 2; const HOOK_REST_Y = 0.90;
+        const HOOK_OBJ_Y = 0.888;
+
+        [-0.62, 0.62].forEach(x => {
+            const post = new THREE.Mesh(new THREE.BoxGeometry(RACK_WIDTH, 1.55, RACK_WIDTH), mat.rackPaint);
+            post.position.set(x, 0.775, RACK_Z); post.castShadow = true; rackGroup.add(post);
+            const hook = new THREE.Mesh(hookGeo, mat.chrome);
+            hook.rotation.set(0, -Math.PI / 2, 0);
+            const hookWrapper = new THREE.Group(); hookWrapper.add(hook);
+            hook.position.set(0, 0, 0); hookWrapper.position.set(x - 0.02, HOOK_OBJ_Y, RACK_FACE_Z);
+            rackGroup.add(hookWrapper);
+            const safetyGroup = new THREE.Group();
+            const arm = new THREE.Mesh(safetyGeo, mat.rackPaint);
+            arm.position.set(0, 0, 0.3); safetyGroup.add(arm);
+            const connector = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.15, 0.1), mat.blackMetal);
+            connector.position.set(0, 0, -0.04); safetyGroup.add(connector);
+            const pin = new THREE.Mesh(pinGeo, new THREE.MeshStandardMaterial({ color: 0xff0000 }));
+            pin.rotation.z = Math.PI / 2; pin.position.set(0.04, 0, -0.04); safetyGroup.add(pin);
+            safetyGroup.position.set(x, 0.65, RACK_FACE_Z + 0); rackGroup.add(safetyGroup);
+        });
+
+        // === 4. 人體 (真實 GLB 模型與 Mocap 追蹤點) ===
+        let myBones = {};
+        const loader = new THREE.GLTFLoader();
+
+        loader.load('model.glb', function (gltf) {
+            const model = gltf.scene;
+            window.myAvatar = model; // ★ 新增這行：讓全域可以控制人偶滑動
+            model.scale.set(1, 1, 1); // 💡 模型太大或太小可改這裡
+            model.rotation.x = -Math.PI / 2; // 躺平
+            model.position.set(0, 0, 1.1);     // ★ 往 6 點鐘方向再退 (0.85 → 0.9)
+
+            // ★ 修改 1：自動對齊椅面 ——
+            // 用 Bounding Box 量出躺平後模型「背部最低點」，讓它剛好貼在椅墊頂 (Y=0.50)
+            const BENCH_TOP_Y = 0.50; // 椅墊 BoxGeometry(0.30, 0.1, 1.2) 在 Y=0.45 → 頂面 0.50
+            model.updateWorldMatrix(true, true);
+            const bbox = new THREE.Box3().setFromObject(model);
+            // 躺平後 bbox.min.y 就是背部/最低面的世界 Y 座標
+            const backY = bbox.min.y;
+            model.position.y = BENCH_TOP_Y - backY; // 往上（或下）移動讓背部貼齊椅面
+            scene.add(model);
+            console.log('✅ 新模型載入成功！');
+
+            console.log('🦴 === 骨骼名單開始 ===');
+            model.traverse(function (object) {
+                if (object.isBone) {
+                    myBones[object.name] = object;
+
+                    // ★ 握拳：只彎曲真正的手指關節骨骼（排除輔助骨骼和腳趾）
+                    // 格式：DHIbody{finger}_{01|02|03}_{l|r}_{數字}
+                    const fingerMatch = object.name.match(
+                        /^DHIbody(index|middle|ring|pinky|thumb)_(0[123])_(l|r)_\d+$/i
+                    );
+                    if (fingerMatch) {
+                        const joint = fingerMatch[2]; // '01', '02', '03'
+                        const side = fingerMatch[3];   // 'l' or 'r'
+                        const finger = fingerMatch[1]; // 'thumb', 'index', etc.
+
+                        // 拇指彎少一點，其他四指彎多一點
+                        let curlAngle = (finger === 'thumb') ? 0.5 : 1.0;
+                        // 第三指節可以再多彎一些
+                        if (joint === '03') curlAngle *= 1.2;
+
+                        // 左右手方向相反
+                        const sign = 1; // 這尊模型左右手 Z 軸彎曲方向相同
+                        const curlQ = new THREE.Quaternion().setFromAxisAngle(
+                            new THREE.Vector3(0, 0, 1), sign * curlAngle
+                        );
+                        object.quaternion.multiply(curlQ);
+                        console.log('✊', object.name);
+                    }
+                }
+                if (object.isMesh) {
+                    object.castShadow = true;
+                    object.receiveShadow = true;
+                }
+            });
+            console.log('🦴 === 骨骼名單結束 === 共', Object.keys(myBones).length, '塊骨骼');
+        }, undefined, function (error) {
+            console.error('❌ 模型載入失敗:', error);
+        });
+
+        // 建立 6 個發光的「動態捕捉追蹤點 (Mocap Markers)」
+        const markerMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, wireframe: true });
+        const trackers = {
+            lShoulder: new THREE.Mesh(new THREE.SphereGeometry(0.04), markerMat),
+            rShoulder: new THREE.Mesh(new THREE.SphereGeometry(0.04), markerMat),
+            lElbow: new THREE.Mesh(new THREE.SphereGeometry(0.04), markerMat),
+            rElbow: new THREE.Mesh(new THREE.SphereGeometry(0.04), markerMat),
+            lHand: new THREE.Mesh(new THREE.SphereGeometry(0.04), markerMat),
+            rHand: new THREE.Mesh(new THREE.SphereGeometry(0.04), markerMat)
+        };
+        Object.values(trackers).forEach(t => { scene.add(t); t.visible = false; });
+
+        // ── 槓鈴 ──
+        const barGroup = new THREE.Group();
+        barGroup.position.set(0, 0.888, -0.36); // ★ 初始位置在 J-Hook 槓架上
+        scene.add(barGroup);
+        const barShaft = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 2.2, 16), mat.chrome);
+        barShaft.rotation.z = Math.PI / 2; barShaft.castShadow = true; barGroup.add(barShaft);
+        function createPlates(x) {
+            const g = new THREE.Group(); g.position.x = x;
+            const plateMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.3, metalness: 0.8 });
+            const p1 = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.04, 24), plateMat);
+            p1.rotation.z = Math.PI / 2; p1.castShadow = true;
+            const p2 = p1.clone(); p2.position.x = x > 0 ? 0.05 : -0.05;
+            g.add(p1); g.add(p2); barGroup.add(g);
+        }
+        createPlates(0.8); createPlates(-0.8);
+
+        // === 5. 邏輯與動畫迴圈 ===
+        let wsJoints = null;
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+
+            if (wsJoints) {
+                if (wsIndicator) {
+                    wsIndicator.innerText = '● LIVE — 真實姿勢資料';
+                    wsIndicator.style.color = '#00f7ff';
+                }
+
+                // --- 1. 定位與吸附 ---
+                const lUpper = myBones['DHIbodyupperarm_l_014'];
+                const lFore = myBones['DHIbodylowerarm_l_015'];
+                const rUpper = myBones['DHIbodyupperarm_r_0145'];
+                const rFore = myBones['DHIbodylowerarm_r_0146'];
+
+                // ★ 1. 最純淨的空間映射 (不加任何人為干擾的收肘偏移)
+                const remapPose = (pos) => {
+                    return [
+                        pos[0],        // X: 左右不反轉 (符合您現在的攝影機視角)
+                        pos[2] + 0.5,  // Y: 深度變高度
+                        pos[1] - 1.5   // Z: 上下變頭腳
+                    ];
+                };
+
+                // ── 2. 動態吸附校正 (完全信任 AI 的點位) ──
+                if (lUpper && rUpper) {
+                    const modelL = new THREE.Vector3();
+                    const modelR = new THREE.Vector3();
+                    lUpper.getWorldPosition(modelL);
+                    rUpper.getWorldPosition(modelR);
+                    const modelMid = new THREE.Vector3().addVectors(modelL, modelR).multiplyScalar(0.5);
+
+                    const aiL = new THREE.Vector3(...remapPose(wsJoints.lShoulder));
+                    const aiR = new THREE.Vector3(...remapPose(wsJoints.rShoulder));
+                    const aiMid = new THREE.Vector3().addVectors(aiL, aiR).multiplyScalar(0.5);
+
+                    const offset = new THREE.Vector3().subVectors(modelMid, aiMid);
+
+                    // ── ★★★ 加入線性插值 (Lerp) 平滑化抗抖動 ★★★ ──
+
+                    // 1. 先計算出 AI 給的「目標絕對位置」
+                    const target_lS = new THREE.Vector3(...remapPose(wsJoints.lShoulder)).add(offset);
+                    const target_rS = new THREE.Vector3(...remapPose(wsJoints.rShoulder)).add(offset);
+                    const target_lE = new THREE.Vector3(...remapPose(wsJoints.lElbow)).add(offset);
+                    const target_rE = new THREE.Vector3(...remapPose(wsJoints.rElbow)).add(offset);
+                    const target_lH = new THREE.Vector3(...remapPose(wsJoints.lHand)).add(offset);
+                    const target_rH = new THREE.Vector3(...remapPose(wsJoints.rHand)).add(offset);
+
+                    // 2. 設定平滑係數 (Smooth Factor)
+                    // 💡 數值範圍 0.01 ~ 1.0。
+                    // 數值越小：越像奶油般平滑，但動作會有稍微的延遲感 (Lag/殘影)。
+                    // 數值越大：反應越快、越跟手，但抗抖動效果會變弱。
+                    // 0.15 是一個非常適合 30FPS 轉換到 60FPS 的黃金抗抖動比例！
+                    const smooth = 0.15;
+
+                    // 3. 讓追蹤點「慢慢滑向」目標位置 (Lerp 演算法)
+                    trackers.lShoulder.position.lerp(target_lS, smooth);
+                    trackers.rShoulder.position.lerp(target_rS, smooth);
+                    trackers.lElbow.position.lerp(target_lE, smooth);
+                    trackers.rElbow.position.lerp(target_rE, smooth);
+                    trackers.lHand.position.lerp(target_lH, smooth);
+                    trackers.rHand.position.lerp(target_rH, smooth);
+
+                    // 手肘內部補足：暫時還原
+                    // const elbowTuck = 0.2; // 可依需求微調
+                    // trackers.lElbow.position.x += elbowTuck; // 左手肘往右移
+                    // trackers.rElbow.position.x -= elbowTuck; // 右手肘往左移
+                }
+
+
+                // ── 4. 操縱真骨頭 (精準向量版) ──
+                function pointBoneDir(bone, fromPos, toPos, restAxis, rollAngle = 0) {
+                    if (!bone) return;
+                    const dir = new THREE.Vector3().subVectors(toPos, fromPos);
+                    if (dir.length() < 0.001) return;
+                    dir.normalize();
+
+                    if (bone.parent) {
+                        const pq = new THREE.Quaternion();
+                        bone.parent.getWorldQuaternion(pq);
+                        dir.applyQuaternion(pq.invert());
+                    }
+                    bone.quaternion.setFromUnitVectors(restAxis, dir);
+
+                    // 手腕內旋
+                    if (rollAngle !== 0) {
+                        const rollQ = new THREE.Quaternion().setFromAxisAngle(restAxis, rollAngle);
+                        bone.quaternion.multiply(rollQ);
+                    }
+
+                    // ★★★ 關鍵修復：每次轉完一根骨頭，必須立刻更新世界矩陣！ ★★★
+                    // 這樣下一根骨頭 (下手臂) 才會以正確的肩膀角度為起點來計算。
+                    bone.updateMatrixWorld(true);
+                }
+
+                // ★ 恢復不會交叉的正確生長軸 (已翻轉以配合俯視攝影機)
+                const axisLeft = new THREE.Vector3(-1, 0, 0); // 原本是 -1
+                const axisRight = new THREE.Vector3(1, 0, 0);  // 原本是 1
+
+                if (lUpper && lFore && rUpper && rFore) {
+                    // ★ shoulderRoll = PI：讓肩膀自轉 180 度，手肘自然朝下
+                    const shoulderRoll = 0; // 不使用肩部自轉校正
+
+                    // 手腕內旋 (控制掌心朝向，讓手握槓鈴)
+                    const leftRoll = 0;
+                    const rightRoll = 0;
+
+                    // 左手駕動 (套用 shoulderRoll 矯正手肘方向)
+                    // 左手駕動 (使用原始軸向與手腕內旋)
+                    pointBoneDir(lUpper, trackers.lShoulder.position, trackers.lElbow.position, axisLeft, 0);
+                    pointBoneDir(lFore, trackers.lElbow.position, trackers.lHand.position, axisLeft, leftRoll);
+
+                    // 右手駕動 (使用原始軸向與手腕內旋)
+                    pointBoneDir(rUpper, trackers.rShoulder.position, trackers.rElbow.position, axisRight, 0);
+                    pointBoneDir(rFore, trackers.rElbow.position, trackers.rHand.position, axisRight, rightRoll);
+
+                    // ── ★★★ 新增：槓鈴「完美貼合手掌」追蹤系統 ★★★ ──
+                    // 1. 強制更新骨骼的真實 3D 空間位置
+                    lFore.updateMatrixWorld(true);
+                    rFore.updateMatrixWorld(true);
+
+                    // 2. 用中指第一指節定位握槓位置（比手掌骨更準確）
+                    const lGrip = myBones['DHIbodymiddle_01_l_018'] || myBones['DHIbodylhand_l_016'] || myBones['DHIbodyhand_l_016'];
+                    const rGrip = myBones['DHIbodymiddle_01_r_0149'] || myBones['DHIbodyrhand_r_0148'] || myBones['DHIbodyhand_r_0147'];
+                    if (!window._gripLog) { console.log('🎯 左握:', lGrip?.name, '右握:', rGrip?.name); window._gripLog = true; }
+
+                    if (lGrip && rGrip) {
+                        const lPos = new THREE.Vector3();
+                        const rPos = new THREE.Vector3();
+                        lGrip.getWorldPosition(lPos);
+                        rGrip.getWorldPosition(rPos);
+
+                        // 3. 算出模型雙手的真實中心點
+                        const midModelHand = new THREE.Vector3().addVectors(lPos, rPos).multiplyScalar(0.5);
+
+                        // ── ★★★ 終極絕對座標狀態機 (不亂動人偶，只平移槓架) ★★★ ──
+
+                        const isHandsLevel = Math.abs(lPos.y - rPos.y) < 0.25;
+
+                        // A. 擷取「黃金深度 (Z)」並對齊槓架
+                        if (typeof window.rackZ === 'undefined' && wsJoints && isHandsLevel && midModelHand.y > 0.6) {
+                            window.rackZ = midModelHand.z;
+                            window.isBarAttached = true; // 開局直接握住
+
+                            // 數學完美對齊：計算槓鈴在手上的目標 Z 軸，然後把大槓架移過去
+                            const barRestZ = window.rackZ + 0.03;
+                            rackGroup.position.z = barRestZ - (-0.36);
+
+                            console.log("🎯 槓架已完美對齊您的握槓深度：", window.rackZ);
+                        }
+
+                        if (typeof window.rackZ !== 'undefined') {
+                            let targetY = midModelHand.y - 0.02; // 微調虎口高度
+                            let targetZ = midModelHand.z + 0.03; // 微調虎口深度
+
+                            // 固定 3D 槓架的掛勾高度 (永遠不變的物理牆壁)
+                            const VIRTUAL_RACK_Y = 0.945;
+
+                            // 結界判定 (Z 軸差距小於 8 公分算在架子區內)
+                            const diffZ = Math.abs(midModelHand.z - window.rackZ);
+                            const isInSafeZone = (diffZ < 0.08);
+
+                            // B. 嚴謹狀態機 (加入防閃爍緩衝邏輯)
+                            if (isHandsLevel) {
+                                if (isInSafeZone) {
+                                    // 放手：手放得比掛勾低 (差 8 公分) -> 確定您手離開了
+                                    if (window.isBarAttached && targetY < VIRTUAL_RACK_Y - 0.08) {
+                                        window.isBarAttached = false;
+                                    }
+                                    // 抓取：手往上推，幾乎碰到掛勾 -> 重新抓起
+                                    else if (!window.isBarAttached && targetY > VIRTUAL_RACK_Y - 0.03) {
+                                        window.isBarAttached = true;
+                                    }
+                                }
+                            } else {
+                                // ★ 解決圖2的防呆機制：只要單手放下，強制判定為放開槓鈴！
+                                window.isBarAttached = false;
+                            }
+
+                            // C. 套用最終物理位置
+                            let barY, barZ;
+                            if (window.isBarAttached) {
+                                // 🟢 抓著槓鈴：絕對跟隨
+                                barZ = targetZ;
+                                if (isInSafeZone) {
+                                    // 物理托底：在架子區內推，槓鈴絕對不會掉下去穿透掛勾
+                                    barY = Math.max(targetY, VIRTUAL_RACK_Y);
+                                } else {
+                                    // 出槓：自由臥推跟隨
+                                    barY = targetY;
+                                }
+                            } else {
+                                // 🔴 放手休息 (解決圖1問題)：槓鈴死鎖在掛勾上
+                                barZ = window.rackZ + 0.03; // 退回最初的握槓深度
+                                barY = VIRTUAL_RACK_Y;      // 穩穩躺在掛勾上
+                            }
+
+                            barGroup.position.set(0, barY, barZ);
+                        } else {
+                            // 尚未擷取前
+                            barGroup.position.set(0, 0.945, -0.36);
+                        }
+                    }
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+        animate();
+
+
+
+
+        // ════════════════════════════════════════════════════════════
+        // JSON 客戶端：讀取預先儲存的關節資料
+        // ════════════════════════════════════════════════════════════
+        const wsIndicator = document.createElement('div');
+        wsIndicator.id = 'wsIndicator';
+        wsIndicator.style.cssText = [
+            'position:absolute', 'bottom:115px', 'left:50%',
+            'transform:translateX(-50%)',
+            'font-size:11px', 'letter-spacing:1px', 'font-weight:700',
+            'pointer-events:none', 'transition:opacity 0.5s',
+            'background:rgba(0,0,0,0.6)', 'padding:4px 12px',
+            'border-radius:20px'
+        ].join(';');
+        document.body.appendChild(wsIndicator);
+
+        function setIndicator(text, color) {
+            wsIndicator.style.color = color;
+            wsIndicator.innerText = text;
+            wsIndicator.style.borderColor = color;
+            wsIndicator.style.border = '1px solid ' + color;
+        }
+
+        let animationFrames = [];
+        let currentFrameIdx = 0;
+        let isPlaying = false;
+        let playbackInterval = null;
+
+        // 1. 從網址抓參數，例如 ?id=coach_A 就會去找 data/coach_A.json
+        const urlParams = new URLSearchParams(window.location.search);
+        const fileId = urlParams.get('id') || 'default';
+
+        // 2. 讀取資料
+        setIndicator(`⬤ 正在載入：${fileId}`, '#f1c40f');
+        fetch(`data/${fileId}.json`)
+            .then(response => response.json())
+            .then(data => {
+                animationFrames = data;
+                setIndicator(`⬤ 檔案：${fileId}.json`, '#00ffff');
+                startPlayback();
+            })
+            .catch(err => {
+                setIndicator('⬤ 找不到資料，請確認 data/ 資料夾', '#e74c3c');
+            });
+
+        // 3. 播放迴圈
+        function startPlayback() {
+            if (isPlaying) return;
+            isPlaying = true;
+
+            if (playbackInterval) clearInterval(playbackInterval);
+
+            const speedRange = document.getElementById('speedRange');
+            const speedMultiplier = speedRange ? (parseFloat(speedRange.value) / 4.0) : 1.0;
+            const baseInterval = 33; // 約 30 FPS
+
+            playbackInterval = setInterval(() => {
+                if (currentFrameIdx >= animationFrames.length) {
+                    currentFrameIdx = 0; // 播完回到起點，循環播放
+                }
+
+                const frameData = animationFrames[currentFrameIdx];
+
+                // --- 新增：更新左上角影片畫面 ---
+                if (frameData.image) {
+                    syncVideo.src = "data:image/jpeg;base64," + frameData.image;
+                }
+
+                // 更新 3D 關節資料 (讓 animate 去抓)
+                if (frameData.joints && Object.keys(frameData.joints).length > 0) {
+                    wsJoints = frameData.joints;
+                }
+
+                // 更新進度條
+                if (frameData.progress !== undefined && !window.isDraggingProgress) {
+                    document.getElementById('progressBar').value = frameData.progress;
+                }
+
+                currentFrameIdx++;
+            }, baseInterval / speedMultiplier);
+        }
+
+        function stopPlayback() {
+            isPlaying = false;
+            if (playbackInterval) {
+                clearInterval(playbackInterval);
+                playbackInterval = null;
+            }
+        }
+
+        // ── 播放/暫停邏輯 ──
+        const playPauseBtn = document.getElementById('playPauseBtn');
+
+        window.togglePlay = () => {
+            if (isPlaying) {
+                stopPlayback();
+                playPauseBtn.innerText = "▶️ 播放";
+                playPauseBtn.style.background = "linear-gradient(135deg, #f1c40f, #d4ac0d)";
+            } else {
+                startPlayback();
+                playPauseBtn.innerText = "⏸️ 暫停";
+                playPauseBtn.style.background = "linear-gradient(135deg, #5dade2, #2e86c1)";
+            }
+        };
+
+        // ── 進度條遠控邏輯 ──
+        const pBar = document.getElementById('progressBar');
+        window.isDraggingProgress = false;
+
+        pBar.addEventListener('mousedown', () => window.isDraggingProgress = true);
+        pBar.addEventListener('mouseup', () => window.isDraggingProgress = false);
+
+        pBar.addEventListener('input', (e) => {
+            const percent = parseFloat(e.target.value);
+            if (animationFrames.length > 0) {
+                currentFrameIdx = Math.floor((percent / 100) * (animationFrames.length - 1));
+                const frameData = animationFrames[currentFrameIdx];
+                if (frameData && frameData.joints) {
+                    wsJoints = frameData.joints;
+                }
+            }
+        });
+
+        // 操作說明彈窗開關
+        window.toggleHelp = () => {
+            document.getElementById('helpOverlay').classList.toggle('active');
+        };
+
+        // ── 速度控制邏輯 ──
+        const speedRange = document.getElementById('speedRange');
+        speedRange.addEventListener('input', (e) => {
+            if (isPlaying) {
+                stopPlayback();
+                startPlayback();
+            }
+        });
+
+        window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+    </script>
+</body>
+
+</html>
