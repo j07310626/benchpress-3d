@@ -370,17 +370,24 @@
                 margin-bottom: 0 !important;
             }
 
-            #controls > div:nth-child(6) {  /* 速度容器 */
-                width: 100% !important;
-                flex-basis: 100%;
+            #controls > div:nth-child(6) {  /* 速度容器 — 跟按鈕同一行,寬度限制 130px */
+                width: auto !important;
+                flex-basis: auto !important;
+                flex-grow: 0;
+                flex-shrink: 1;
                 min-width: 0 !important;
-                max-width: 100% !important;
-                padding: 0 6px;
-                order: 11;
+                max-width: 130px !important;
+                padding: 0;
+                order: 5;                /* 跟按鈕同行 (按鈕 order 預設 0,進度條 order 10) */
             }
             #controls > div:nth-child(6) label {
                 font-size: 10px !important;
                 margin-bottom: 0 !important;
+                white-space: nowrap;
+            }
+            /* 速度的內部拉桿也限制寬度 */
+            #controls > div:nth-child(6) input[type=range] {
+                max-width: 110px;
             }
 
             /* slider thumb 縮小 (避免大圓鈕戳出邊界) */
@@ -436,38 +443,54 @@
             <h2>💡 操作指南</h2>
 
             <div class="help-item">
-                <div class="help-icon">🚀</div>
+                <div class="help-icon">⏯️</div>
                 <div class="help-text">
-                    <h4>開始 / 重置 (Start / Reset)</h4>
-                    <p>控制訓練流程。點擊「開始」進行起槓，完成後點擊「重置」將器材歸零。</p>
+                    <h4>播放 / 暫停</h4>
+                    <p>控制 3D 動畫播放。暫停後可拖曳視角觀察特定動作細節。</p>
                 </div>
             </div>
 
             <div class="help-item">
-                <div class="help-icon">⏸️</div>
+                <div class="help-icon">⏩</div>
                 <div class="help-text">
-                    <h4>暫停 / 繼續 (Pause / Resume)</h4>
-                    <p>凍結目前動作。適合暫停後旋轉視角，觀察特定角度的姿勢細節。</p>
+                    <h4>進度條 / 播放速度</h4>
+                    <p>拖曳進度條跳轉到任意時段；速度可從 0.1× 慢動作到 3.0× 快轉。</p>
                 </div>
             </div>
 
             <div class="help-item">
-                <div class="help-icon">🖱️</div>
+                <div class="help-icon">🎥</div>
                 <div class="help-text">
                     <h4>視角控制 (Camera Control)</h4>
-                    <p>• 左鍵拖曳：旋轉視角<br>• 右鍵拖曳：平移視角<br>• 滾輪：縮放遠近</p>
+                    <p>• 桌面:左鍵旋轉、右鍵平移、滾輪縮放<br>• 手機:單指旋轉、雙指縮放</p>
                 </div>
             </div>
 
             <div class="help-item">
-                <div class="help-icon">📊</div>
+                <div class="help-icon">🥏</div>
                 <div class="help-text">
-                    <h4>計數機制 (Auto Counter)</h4>
-                    <p>系統會自動偵測「完整行程」。必須將槓鈴下放至胸口並推回頂點，計數才會 +1。</p>
+                    <h4>隱藏 / 顯示槓片</h4>
+                    <p>切換槓鈴兩端的槓片是否顯示,方便觀察手部與槓桿位置關係。</p>
                 </div>
             </div>
 
-            <div class="close-note">點擊任意處關閉視窗</div>
+            <div class="help-item">
+                <div class="help-icon">🟢</div>
+                <div class="help-text">
+                    <h4>狀態指示器</h4>
+                    <p>● 即時追蹤中(綠):使用者正在握槓推舉<br>● 等待穩定姿勢(橘):準備中或暫時鬆手<br>● 未偵測到使用者(灰):走出畫面或未進入 ROI</p>
+                </div>
+            </div>
+
+            <div class="help-item">
+                <div class="help-icon">📺</div>
+                <div class="help-text">
+                    <h4>影片同步預覽</h4>
+                    <p>左上角顯示原始 mocap 影片,可即時對照 3D 重建與真人動作。</p>
+                </div>
+            </div>
+
+            <div class="close-note">點擊視窗外任意處關閉</div>
         </div>
     </div>
 
