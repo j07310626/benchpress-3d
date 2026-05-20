@@ -1677,34 +1677,48 @@
         const fileId = urlParams.get('id') || 'default';
 
         // 2. 讀取資料 (用 ReadableStream 串流讀取 + 顯示下載進度,改善手機行動網路體驗)
-        setIndicator('正在載入 0%', '#e0c068');
+        setIndicator('正在載入...', '#e0c068');
         fetch(`data/${fileId}.json`)
             .then(async response => {
                 if (!response.ok) throw new Error('HTTP ' + response.status);
+
+                // GitHub Pages 啟用 gzip 後通常沒有 content-length,改抓 x-original-size 或 fallback
+                //   若仍拿不到總大小,改顯示「已下載 X MB」而非百分比 — 使用者仍看得到進度在跑
                 const total = parseInt(response.headers.get('content-length') || '0', 10);
-                // 若沒有 content-length (例如壓縮過),fallback 走原本一次性讀取
-                if (!total || !response.body || !response.body.getReader) {
+                const hasTotal = total > 0;
+
+                // 沒有 stream 支援的舊瀏覽器才走 fallback
+                if (!response.body || !response.body.getReader) {
                     return response.json();
                 }
+
                 // 用 stream 邊讀邊更新進度
                 const reader = response.body.getReader();
                 const chunks = [];
                 let loaded = 0;
-                let lastShownPct = -1;
+                let lastUpdate = 0;
                 while (true) {
                     const { done, value } = await reader.read();
                     if (done) break;
                     chunks.push(value);
                     loaded += value.length;
-                    const pct = Math.round((loaded / total) * 100);
-                    if (pct !== lastShownPct) {
+
+                    // 每 200ms 更新一次 UI (避免太頻繁 reflow)
+                    const now = performance.now();
+                    if (now - lastUpdate > 200) {
                         const mb = (loaded / 1048576).toFixed(1);
-                        const totalMb = (total / 1048576).toFixed(1);
-                        setIndicator(`載入中 ${pct}%  (${mb} / ${totalMb} MB)`, '#e0c068');
-                        lastShownPct = pct;
+                        if (hasTotal) {
+                            const pct = Math.round((loaded / total) * 100);
+                            const totalMb = (total / 1048576).toFixed(1);
+                            setIndicator(`載入中 ${pct}%  (${mb} / ${totalMb} MB)`, '#e0c068');
+                        } else {
+                            setIndicator(`載入中 ${mb} MB...`, '#e0c068');
+                        }
+                        lastUpdate = now;
                     }
                 }
                 // 合併 chunks → 解析 JSON
+                setIndicator('解析中...', '#e0c068');
                 const blob = new Blob(chunks);
                 const text = await blob.text();
                 return JSON.parse(text);
