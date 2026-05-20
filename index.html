@@ -7,6 +7,10 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <!-- ★ 禁止瀏覽器快取 HTML,確保每次都拿到最新版 (JSON / model.glb 仍會被快取,所以影片載入後第二次會變快) -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>3D 臥推模擬</title>
     <style>
         body {
@@ -302,6 +306,40 @@
             padding-top: 15px;
         }
 
+        /* === ★ 右上角「?」操作指南按鈕 === */
+        #helpBtn {
+            position: absolute;
+            top: 22px;
+            right: 22px;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: rgba(28, 32, 40, 0.85);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.40);
+            color: #cfd6df;
+            font-size: 22px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 25;
+            padding: 0;
+            min-width: 0;
+            transition: transform 0.15s ease, background 0.2s ease, color 0.2s ease;
+        }
+        #helpBtn:hover {
+            transform: scale(1.08);
+            background: rgba(93, 173, 226, 0.85);
+            color: #fff;
+        }
+        #helpBtn:active {
+            transform: scale(0.95);
+        }
+
         /* 加上新的響應式設定 */
         #syncVideo {
             display: block;
@@ -416,10 +454,21 @@
             #helpContent {
                 padding: 20px;
                 width: 92%;
+                max-height: 80vh;
+                overflow-y: auto;
             }
             #helpContent h2 { font-size: 17px; }
             .help-text h4 { font-size: 14px; }
             .help-text p { font-size: 12px; }
+
+            /* 8. 「?」按鈕在手機上小一點 + 貼右上角 */
+            #helpBtn {
+                top: 10px;
+                right: 10px;
+                width: 38px;
+                height: 38px;
+                font-size: 18px;
+            }
         }
 
         /* 更窄手機 (例如 iPhone SE,寬約 375px) 進一步縮 */
@@ -437,6 +486,9 @@
 <body>
 
     <img id="syncVideo">
+
+    <!-- 右上角「?」操作指南按鈕 -->
+    <button id="helpBtn" onclick="toggleHelp()" title="操作指南" aria-label="開啟操作指南">?</button>
 
     <div id="helpOverlay" onclick="toggleHelp()">
         <div id="helpContent" onclick="event.stopPropagation()">
