@@ -320,63 +320,77 @@
         /* === ★ 手機 (直式) 響應式優化 === */
         /* 條件:寬度 <= 768px 或 直式拿手機,以前者為主 */
         @media (max-width: 768px) {
-            /* 1. 左上角預覽影片 — 放大,看得更清楚 */
+            /* 1. 左上角預覽影片 — 再大一點 */
             #syncVideo {
-                width: 44vw;
-                max-width: 280px;
-                top: 12px;
-                left: 12px;
+                width: 52vw;
+                max-width: 340px;
+                top: 10px;
+                left: 10px;
                 border-radius: 10px;
             }
 
-            /* 2. 底部 controls 緊湊化 + 換行支援 */
+            /* 2. 底部 controls 緊湊化 + 換行支援 + box-sizing 避免 padding 撐爆寬度 */
             #controls {
-                bottom: 10px;
-                padding: 8px 12px;
-                gap: 6px;
-                border-radius: 20px;
-                width: calc(100% - 12px);
+                bottom: 8px;
+                padding: 8px 10px;
+                gap: 5px;
+                border-radius: 18px;
+                width: calc(100% - 8px);
                 max-width: none;
                 flex-wrap: wrap;
                 justify-content: center;
+                box-sizing: border-box;     /* ★ 確保 width 不含 padding */
+            }
+            /* 子元素也要 border-box,避免 padding 累積超出 */
+            #controls *,
+            #controls *::before,
+            #controls *::after {
+                box-sizing: border-box;
             }
 
-            /* 3. 按鈕縮小 */
+            /* 3. 按鈕大幅縮小 */
             #controls button {
-                padding: 7px 12px;
-                font-size: 12px;
+                padding: 6px 10px;
+                font-size: 11px;
                 min-width: 0;
-                border-radius: 14px;
+                border-radius: 12px;
             }
 
-            /* 4. 進度條 + 速度都獨佔一行 (避免被切到螢幕外)
-               #controls 內 child 順序:
-                 1) button playPauseBtn  (第一行,左)
-                 2) button togglePlatesBtn (第一行,右)
-                 3) div.divider          (手機隱藏)
-                 4) div 進度條容器        (第二行,獨佔)
-                 5) div.divider          (手機隱藏)
-                 6) div 速度容器          (第三行,獨佔)                    */
+            /* 4. 進度條 + 速度都獨佔一行,且強制 width: calc(100% - 4px) 留 thumb 邊 */
             #controls > div:nth-child(4) {  /* 進度條容器 */
                 width: 100% !important;
                 flex-basis: 100%;
                 min-width: 0 !important;
+                max-width: 100% !important;
+                padding: 0 6px;         /* 兩側留邊讓 slider thumb 不超出 */
                 order: 10;
             }
             #controls > div:nth-child(4) label {
                 font-size: 9px !important;
-                margin-bottom: 1px !important;
+                margin-bottom: 0 !important;
             }
 
-            #controls > div:nth-child(6) {  /* 速度容器 — 改成獨佔一行,避免被切 */
+            #controls > div:nth-child(6) {  /* 速度容器 */
                 width: 100% !important;
                 flex-basis: 100%;
                 min-width: 0 !important;
+                max-width: 100% !important;
+                padding: 0 6px;
                 order: 11;
             }
             #controls > div:nth-child(6) label {
                 font-size: 10px !important;
-                margin-bottom: 2px !important;
+                margin-bottom: 0 !important;
+            }
+
+            /* slider thumb 縮小 (避免大圓鈕戳出邊界) */
+            #controls input[type=range] {
+                width: 100% !important;
+            }
+            #controls input[type=range]::-webkit-slider-thumb {
+                height: 16px;
+                width: 16px;
+                margin-top: -5px;
             }
 
             /* 5. 分隔線在手機上隱藏,節省空間 */
@@ -386,8 +400,8 @@
 
             /* 6. 狀態指示器 — 離 controls 遠一點避免重疊 */
             #wsIndicator {
-                font-size: 14px !important;
-                padding: 8px 18px !important;
+                font-size: 13px !important;
+                padding: 6px 14px !important;
                 bottom: 130px !important;
             }
 
@@ -403,8 +417,9 @@
 
         /* 更窄手機 (例如 iPhone SE,寬約 375px) 進一步縮 */
         @media (max-width: 400px) {
-            #syncVideo { width: 42vw; max-width: 240px; }
-            #controls button { padding: 6px 10px; font-size: 11px; }
+            #syncVideo { width: 50vw; max-width: 300px; }
+            #controls { padding: 6px 8px; gap: 4px; }
+            #controls button { padding: 5px 9px; font-size: 10px; }
         }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
